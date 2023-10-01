@@ -22,7 +22,7 @@ libvips_cpp_dep = declare_dependency(
 
 pkg.generate(
     libvips_cpp_lib,
-    requires: [ libvips_lib, glib_dep, gobject_dep ],
+    requires: bundle_deps ? [] : required_glib_deps,
     name: 'vips-cpp',
     description: 'C++ API for vips8 image processing library',
 )

@@ -54,6 +54,54 @@ cpp = meson.get_compiler('cpp')
 # Prevent use of void* pointer arithmetic to support MSVC
 add_project_arguments(cc.get_supported_arguments('-Werror=pointer-arith'), language : ['cpp', 'c'])
 
+bundle_deps = get_option('bundle_deps').enabled()
+
+if bundle_deps
+    # The following sub projects must be configured before glib for
+    # default_options to take effect.
+    subproject('proxy-libintl',
+        default_options: [
+            'default_library=static',
+        ]
+    )
+    subproject('pcre2',
+        default_options: [
+            'default_library=static',
+        ]
+    )
+    subproject('expat',
+        default_options: [
+            'default_library=static',
+        ]
+    )
+    subproject('libffi',
+        default_options: [
+            'default_library=static',
+        ]
+    )
+
+    subproject('glib',
+        default_options: [
+            'default_library=static',
+        ]
+    )
+
+    if get_option('webp').enabled()
+        subproject('libwebp',
+            default_options: [
+                'default_library=static',
+                'libsharpyuv=enabled',
+                'libwebp=enabled',
+                'libwebpmux=enabled',
+                'libwebpdemux=enabled',
+                'libwebpdecoder=enabled',
+                'simd=enabled',
+                'threads=enabled',
+            ]
+        )
+    endif
+endif
+
 glib_dep = dependency('glib-2.0', version: '>=2.40')
 gio_dep = dependency('gio-2.0')
 gobject_dep = dependency('gobject-2.0')
@@ -62,10 +110,13 @@ expat_dep = dependency('expat')
 thread_dep = dependency('threads')
 m_dep = cc.find_library('m', required: false)
 
-libvips_deps = [
+required_glib_deps = [
     glib_dep,
     gio_dep,
     gobject_dep,
+]
+
+libvips_deps = required_glib_deps + [
     gmodule_dep,
     expat_dep,
     thread_dep,
@@ -647,7 +698,10 @@ config_dep = declare_dependency(
     compile_args: '-DHAVE_CONFIG_H=1',
 )
 
-libvips_deps += config_dep
+# Make sure libvips's config.h file has higher precedence than the config.h
+# files of subprojects, by predending it to the deps.
+# Not sure if this is a reliable way to do this, but it seems to work.
+libvips_deps = [config_dep] + libvips_deps
 
 gir = find_program('g-ir-scanner', required: get_option('introspection'))
 enable_introspection = gir.found() and (not meson.is_cross_build() or get_option('introspection').enabled())
